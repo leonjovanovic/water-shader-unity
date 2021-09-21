@@ -1,0 +1,36 @@
+Making a Water Shader in Unity with URP! - https://www.youtube.com/watch?v=gRq-IdShxpU&ab_channel=Unity
+SIMPLE CARTOON WATER in Unity - https://www.youtube.com/watch?v=Vg0L9aCRWPE&ab_channel=Brackeys
+OCEAN shader with Unity Shader Graph! - https://www.youtube.com/watch?v=FbTAbOnhRcI&ab_channel=PolyToots
+Basic water using Shader Graph in Unity. - https://www.youtube.com/watch?v=uuzB93F39P8&ab_channel=PolyToots
+Oceans with Unity Shader Graph. - https://www.youtube.com/watch?v=kgXeo2SRDd4&ab_channel=PolyToots
+
+Caustics
+https://www.alanzucconi.com/2019/09/13/believable-caustics-reflections/
+
+WaterShader + flow particles
+https://catlikecoding.com/unity/tutorials/flow/
+https://halfpastyellow.com/blog/2020/10/01/Yet-Another-Stylised-Water-Shader.html
+https://halfpastyellow.com/blog/2020/10/15/Flow-Like-Water.html
+
+Reference
+https://www.youtube.com/watch?v=B1T06UhcX0Q&ab_channel=LoungeVFilms-RelaxingMusicandNatureSounds
+
+Tessellation
+https://catlikecoding.com/unity/tutorials/advanced-rendering/tessellation/
+
+Triplanar Mapping
+https://catlikecoding.com/unity/tutorials/advanced-rendering/triplanar-mapping/
+https://www.patreon.com/posts/45320078
+https://www.youtube.com/watch?v=fW-5srSHDMc&ab_channel=NedMakesGames
+
+Ripple Effect
+https://www.patreon.com/posts/24192529
+
+Waves
+https://www.youtube.com/watch?v=Awd1hRpLSoI&ab_channel=Zicore
+
+Explanation of water
+https://www.youtube.com/watch?v=4FIDBeF_4SI&t=828s&ab_channel=Simonschreibt
+
+Reddit
+https://www.reddit.com/r/Unity3D/comments/pbwvc0/are_water_shaders_still_popular_breakdown_video/

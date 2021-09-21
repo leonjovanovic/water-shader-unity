@@ -12,27 +12,37 @@
         _HeightScale("Height Scale, Constant", Float) = 0.25
         _HeightScaleModulated("Height Scale, Modulated", Float) = 0.75
         _GridResolution("Grid Resolution", Float) = 10
+
+        _WaterFogColor("Water Fog Color", Color) = (0, 0, 0, 0)
+        _WaterFogDensity("Water Fog Density", Range(0, 2)) = 0.1
+        _RefractionStrength("Refraction Strength", Range(0, 1)) = 0.25
+
         _Glossiness("Smoothness", Range(0,1)) = 0.5
         _Metallic("Metallic", Range(0,1)) = 0.0
     }
         SubShader
         {
-            Tags { "RenderType" = "Opaque" }
+            Tags { "RenderType" = "Transparent" "Queue" = "Transparent"}
             LOD 200
+
+            GrabPass { "_WaterBackground" }
 
             CGPROGRAM
             // Physically based Standard lighting model, and enable shadows on all light types
-            #pragma surface surf Standard fullforwardshadows
+            #pragma surface surf Standard alpha finalcolor:ResetAlpha
 
             #pragma target 3.0
 
             #include "Flow.cginc"
+            #include "LookingThroughWater.cginc"
 
             sampler2D _MainTex, _FlowMap;
             float _Tiling, _Speed, _FlowStrength, _HeightScale, _TilingModulated, _HeightScaleModulated, _GridResolution;
             struct Input
             {
+                //We take screen position on input for refraction and tex coords for flow
                 float2 uv_MainTex;
+                float4 screenPos;
             };
 
             half _Glossiness;
@@ -57,7 +67,7 @@
                 float2x2 derivRotation;
                 float2 uvTiled = (floor(uv * _GridResolution + offset) + shift) / _GridResolution;
 
-                float3 flow = tex2D(_FlowMap, uvTiled * 0.1).rgb;
+                float3 flow = tex2D(_FlowMap, uvTiled * 1).rgb;
                 flow.xy = flow.xy * 2 - 1;
                 flow.z *= _FlowStrength;
                 float tiling = flow.z * _TilingModulated + _Tiling;
@@ -88,6 +98,10 @@
                 return dhA * wA + dhB * wB + dhC * wC + dhD * wD;
             }
 
+            void ResetAlpha(Input IN, SurfaceOutputStandard o, inout fixed4 color) {
+                color.a = 1;
+            }
+
             void surf(Input IN, inout SurfaceOutputStandard o)
             {
                 // Get tex coordinates and scaled to _Tiling - bigger the _Tiling, bigger the uv, more details 
@@ -98,6 +112,7 @@
                 dh = (dh + FlowGrid(uv, time, true)) * 0.5;
                 // Output color is height of waves ^ 2 * Color from inspector
                 fixed4 c = dh.z * dh.z * _Color;
+                c.a = _Color.a;
                 o.Albedo = c.rgb;
                 // Output normals are normalized scaled derivatives from derivative-height ong image
                 o.Normal = normalize(float3(-dh.xy, 1));
@@ -106,6 +121,8 @@
                 o.Metallic = _Metallic;
                 o.Smoothness = _Glossiness;
                 o.Alpha = c.a;
+
+                o.Emission = ColorBelowWater(IN.screenPos, o.Normal) * (1-c.a);
             }
             ENDCG
         }

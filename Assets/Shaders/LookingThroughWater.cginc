@@ -21,6 +21,7 @@ float2 AlignWithGrabTexel(float2 uv) {
 
 //Returns rgb of fragments under the water
 float3 ColorBelowWater(float4 screenPos, float3 tangentSpaceNormal) {
+	//---------------------REFRACTION----------------------------
 	//To make the offset wiggle, we'll use the XY coordinates of the tangent-space normal vector as the offset
 	float2 uvOffset = tangentSpaceNormal.xy * _RefractionStrength;
 	// not symmetrical. The vertical offset is less than the horizontal.
@@ -33,7 +34,7 @@ float3 ColorBelowWater(float4 screenPos, float3 tangentSpaceNormal) {
 	float backgroundDepth = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, uv));
 	// surface depth
 	float surfaceDepth = UNITY_Z_0_FAR_FROM_CLIPSPACE(screenPos.z);
-	// water surface - depth = depth from surface to object
+	// depth - water surface = depth from surface to object
 	float depthDifference = backgroundDepth - surfaceDepth;
 
 	// Calculate new offset scaled by depth difference
@@ -47,7 +48,7 @@ float3 ColorBelowWater(float4 screenPos, float3 tangentSpaceNormal) {
 	// Get color from behind color
 	float3 backgroundColor = tex2D(_WaterBackground, uv).rgb;
 	// Calculate how much we want to apply fog
-	float fogFactor = exp2(-_WaterFogDensity * depthDifference);
+	float fogFactor = exp2(-_WaterFogDensity/10 * depthDifference);
 	return lerp(_WaterFogColor, backgroundColor, fogFactor);
 }
 

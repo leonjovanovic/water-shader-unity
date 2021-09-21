@@ -76,14 +76,17 @@ Material:
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
+    - _RefractionStrength: 0.48
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
-    - _Speed: 2
+    - _Speed: 0.27
     - _SrcBlend: 1
     - _Tiling: 3
     - _TilingModulated: 50
     - _UVSec: 0
+    - _WaterFogDensity: 0.3
     - _ZWrite: 1
     m_Colors:
-    - _Color: {r: 0.31764707, g: 0.70980394, b: 1, a: 1}
+    - _Color: {r: 0.31764707, g: 0.70980394, b: 1, a: 0.49803922}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _WaterFogColor: {r: 0.30588236, g: 0.5137255, b: 0.6627451, a: 0}
