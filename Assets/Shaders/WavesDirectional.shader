@@ -17,6 +17,10 @@
         _WaterFogColor("Water Fog Color", Color) = (0, 0, 0, 0)
         _WaterFogDensity("Water Fog Density", Range(0, 2)) = 0.1
 
+        [Header(Reflection)]
+        _CubeMap("Cube Map", CUBE) = "white" {}
+        _ReflectionStrength("Reflection Strength", Range(0, 1)) = 1
+
         [Header(Refraction)]
         _RefractionStrength("Refraction Strength", Range(0, 1)) = 0.25
 
@@ -49,8 +53,10 @@
             #include "Flow.cginc"
             #include "LookingThroughWater.cginc"
 
+            samplerCUBE _CubeMap;
             sampler2D _MainTex, _FlowMap;
             float _Tiling, _Speed, _FlowStrength, _HeightScale, _TilingModulated, _HeightScaleModulated, _GridResolution;
+            float _ReflectionStrength;
 
             float4 _WaveA, _WaveB, _WaveC, _WaveD;
 
@@ -59,6 +65,9 @@
                 //We take screen position on input for refraction and tex coords for flow
                 float2 uv_MainTex;
                 float4 screenPos;
+                float3 viewDir;
+                float3 worldRefl;
+                INTERNAL_DATA
             };
 
             half _Glossiness;
@@ -168,7 +177,7 @@
                 float3 dh = FlowGrid(uv, time, false);
                 dh = (dh + FlowGrid(uv, time, true)) * 0.5;
                 // Output color is height of waves ^ 2 * Color from inspector
-                fixed4 c = dh.z * dh.z * _Color * 2;
+                fixed4 c = dh.z * 1.5 *_Color;
                 c.a = _Color.a;
 
                 o.Albedo = c.rgb;
@@ -179,7 +188,8 @@
                 o.Smoothness = _Glossiness;
                 o.Alpha = c.a;
 
-                o.Emission = ColorBelowWater(IN.screenPos, o.Normal * 50) * (1 - c.a);
+                o.Emission = ColorBelowWater(IN.screenPos, o.Normal * 20) * (1 - c.a)
+                    + texCUBE(_CubeMap, WorldReflectionVector(IN, o.Normal)).rgb * (1 - dot(IN.viewDir, o.Normal)) * (1 - _ReflectionStrength);
             }
             ENDCG
         }

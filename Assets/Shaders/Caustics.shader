@@ -15,6 +15,7 @@
         _Speed2("Speed2", Vector) = (1,1,0,0)
         _SplitRGB("SplitRGB", Float) = 10
         _MaxHeight("Maximum Height", Float) = 10
+        _Intensity("Intensity", Float) = 3
     }
     SubShader
     {
@@ -27,17 +28,17 @@
 
         // Use shader model 3.0 target, to get nicer looking lighting
         #pragma target 3.0
-        #include "Caustics.cginc"
 
         sampler2D _MainTex, _CausticsTex;
         float4 _Caustics_ST1, _Caustics_ST2;
         float2 _Speed1, _Speed2;
-        float _SplitRGB, _MaxHeight;
+        float _SplitRGB, _MaxHeight, _Intensity;
 
         struct Input
         {
             float2 uv_MainTex;
             float3 worldPos;
+            float4 screenPos;
         };
 
         half _Glossiness;
@@ -69,22 +70,17 @@
             b = tex2D(_CausticsTex, uv + fixed2(-s, -s)).b;
             fixed3 caustics2 = fixed3(r, g, b);
             // Blend
-            return min(caustics1, caustics2);
+            return min(caustics1, caustics2) * _Intensity;
         }
 
         void surf (Input IN, inout SurfaceOutputStandard o)
         {
             // Albedo comes from a texture tinted by color
-            fixed4 c = tex2D (_MainTex, IN.uv_MainTex) * _Color;
+            float2 uv = float2(IN.uv_MainTex.x, IN.uv_MainTex.y/1.5);
+            fixed4 c = tex2D (_MainTex, uv) * _Color;
             o.Albedo = c.rgb;
             if (IN.worldPos.y < _MaxHeight)
                 o.Albedo.rgb += caustics(IN.uv_MainTex) * abs(min(1, ((_MaxHeight - IN.worldPos.y) / _MaxHeight))) * 2;
-            /*if (IN.worldPos.y < (_MaxHeight - 0.1)) {
-                o.Albedo.rgb += caustics(IN.uv_MainTex);
-            }
-            else {
-                o.Albedo.rgb += blend(caustics(IN.uv_MainTex));
-            }*/
 
             // Metallic and smoothness come from slider variables
             o.Metallic = _Metallic;

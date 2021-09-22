@@ -5,7 +5,7 @@ sampler2D _CameraDepthTexture, _WaterBackground;
 float4 _CameraDepthTexture_TexelSize;
 
 float3 _WaterFogColor;
-float _WaterFogDensity, _RefractionStrength;
+float _WaterFogDensity, _RefractionStrength, _RefractionStrength2;
 
 // fix blending when sampling the grabbed texture
 // (to remove thin line of artifacts around the edge of the refraction)
@@ -24,11 +24,16 @@ float3 ColorBelowWater(float4 screenPos, float3 tangentSpaceNormal) {
 	//---------------------REFRACTION----------------------------
 	//To make the offset wiggle, we'll use the XY coordinates of the tangent-space normal vector as the offset
 	float2 uvOffset = tangentSpaceNormal.xy * _RefractionStrength;
+	if (uvOffset.x == 0 && uvOffset.y == 0) {
+		uvOffset = _RefractionStrength2;
+	}
 	// not symmetrical. The vertical offset is less than the horizontal.
 	// to equalize the offsets, we have to multiply the V offset by the image width divided by its height
 	uvOffset.y *= _CameraDepthTexture_TexelSize.z * abs(_CameraDepthTexture_TexelSize.y);
 
 	float2 uv = AlignWithGrabTexel((screenPos.xy + uvOffset) / screenPos.w);
+
+
 
 	// depth relative to the screen
 	float backgroundDepth = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, uv));

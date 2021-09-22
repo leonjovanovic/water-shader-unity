@@ -64,9 +64,9 @@ Material:
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
-    - _FlowStrength: 0
+    - _FlowStrength: 0.1
     - _GlossMapScale: 1
-    - _Glossiness: 0.7
+    - _Glossiness: 0.9
     - _GlossyReflections: 1
     - _GridResolution: -0.1
     - _HeightScale: -0.48
@@ -83,7 +83,7 @@ Material:
     - _Tiling: 1.28
     - _TilingModulated: 50
     - _UVSec: 0
-    - _WaterFogDensity: 0.3
+    - _WaterFogDensity: 0.18
     - _ZWrite: 1
     m_Colors:
     - _Color: {r: 0.023529412, g: 0.5411765, b: 0.9607843, a: 0.49803922}

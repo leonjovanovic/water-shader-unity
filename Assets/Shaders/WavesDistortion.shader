@@ -17,8 +17,13 @@
         _WaterFogColor("Water Fog Color", Color) = (0, 0, 0, 0)
         _WaterFogDensity("Water Fog Density", Range(0, 2)) = 0.1
 
+        [Header(Reflection)]
+        _CubeMap("Cube Map", CUBE) = "white" {}
+        _ReflectionStrength("Reflection Strength", Range(0, 1)) = 1
+
         [Header(Refraction)]
         _RefractionStrength("Refraction Strength", Range(0, 1)) = 0.25
+        _RefractionStrength2("Refraction Strength2", Range(0, 1)) = 0.25
 
         [Header(Distortion)]
         _MainTex("Albedo (RGB)", 2D) = "white" {}
@@ -33,32 +38,36 @@
         _HeightScale("Height Scale, Constant", Float) = 0.25
         _HeightScaleModulated("Height Scale, Modulated", Float) = 0.75
     }
-    SubShader
-    {
-        Tags { "RenderType" = "Transparent" "Queue" = "Transparent"}
-        LOD 200
-        CULL OFF
+        SubShader
+        {
+            Tags { "RenderType" = "Transparent" "Queue" = "Transparent"}
+            LOD 200
+            CULL OFF
 
-        GrabPass { "_WaterBackground" }
-        CGPROGRAM
-        // Physically based Standard lighting model, and enable shadows on all light types
-        #pragma surface surf Standard alpha finalcolor:ResetAlpha vertex:vert addshadow
+            GrabPass { "_WaterBackground" }
+            CGPROGRAM
+            // Physically based Standard lighting model, and enable shadows on all light types
+            #pragma surface surf Standard alpha finalcolor:ResetAlpha vertex:vert addshadow
 
-        // Use shader model 3.0 target, to get nicer looking lighting
-        #pragma target 3.0
+            // Use shader model 3.0 target, to get nicer looking lighting
+            #pragma target 3.0
 
-        #include "Flow.cginc"
-        #include "LookingThroughWater.cginc"
+            #include "Flow.cginc"
+            #include "LookingThroughWater.cginc"
 
+        samplerCUBE _CubeMap;
         sampler2D _MainTex, _FlowMap, _DerivHeightMap;
         float _UJump, _VJump, _Tiling, _Speed, _FlowStrength, _FlowOffset, _HeightScale, _HeightScaleModulated;
-
+        float _ReflectionStrength;
         float4 _WaveA, _WaveB, _WaveC, _WaveD;
 
         struct Input
         {
             float2 uv_MainTex;
             float4 screenPos;
+            float3 viewDir;
+            float3 worldRefl;
+            INTERNAL_DATA
         };
 
         half _Glossiness;
@@ -91,6 +100,16 @@
                 d.y * (a * cos(f)));
         }
 
+        void ResetAlpha(Input IN, SurfaceOutputStandard o, inout fixed4 color) {
+            color.a = 1;
+        }
+
+        float3 UnpackDerivativeHeight(float4 textureData) {
+            float3 dh = textureData.agb;
+            dh.xy = dh.xy * 2 - 1;
+            return dh;
+        }
+        
         void vert(inout appdata_full vertexData) {
             float3 p = vertexData.vertex.xyz;
             float3 tangent = float3(1, 0, 0);
@@ -105,16 +124,6 @@
 
             vertexData.vertex.xyz = p;
             vertexData.normal = normal;
-        }
-        
-        void ResetAlpha(Input IN, SurfaceOutputStandard o, inout fixed4 color) {
-            color.a = 1;
-        }
-
-        float3 UnpackDerivativeHeight(float4 textureData) {
-            float3 dh = textureData.agb;
-            dh.xy = dh.xy * 2 - 1;
-            return dh;
         }
 
         void surf (Input IN, inout SurfaceOutputStandard o)
@@ -144,7 +153,8 @@
             o.Smoothness = _Glossiness;
             o.Alpha = c.a;
 
-            o.Emission = ColorBelowWater(IN.screenPos, o.Normal * 20) * (1 - c.a);
+            o.Emission = ColorBelowWater(IN.screenPos, o.Normal * 20) * (1 - c.a)
+                + texCUBE(_CubeMap, WorldReflectionVector(IN, o.Normal)).rgb * (1 - dot(IN.viewDir, o.Normal)) * (1 - _ReflectionStrength);
         }
         ENDCG
     }
