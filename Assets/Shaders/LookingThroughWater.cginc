@@ -1,59 +1,71 @@
 #if !defined(LOOKING_THROUGH_WATER_INCLUDED)
 #define LOOKING_THROUGH_WATER_INCLUDED
 
+// Unity makes the depth buffer globally available via the _CameraDepthTexture variable
+// GrabPass will retreive texture that was rendered before water
 sampler2D _CameraDepthTexture, _WaterBackground;
 float4 _CameraDepthTexture_TexelSize;
 
 float3 _WaterFogColor;
 float _WaterFogDensity, _RefractionStrength, _RefractionStrength2;
 
-// fix blending when sampling the grabbed texture
+// Fix blending when sampling the grabbed texture
 // (to remove thin line of artifacts around the edge of the refraction)
 float2 AlignWithGrabTexel(float2 uv) {
-#if UNITY_UV_STARTS_AT_TOP
+
+	#if UNITY_UV_STARTS_AT_TOP
 	if (_CameraDepthTexture_TexelSize.y < 0) {
 		uv.y = 1 - uv.y;
 	}
-#endif
+	#endif
 	return	(floor(uv * _CameraDepthTexture_TexelSize.zw) + 0.5) * abs(_CameraDepthTexture_TexelSize.xy);
 }
 
 
-//Returns rgb of fragments under the water
+// Returns rgb of fragments under the water on which refraction and underwater fog has been applied to.
 float3 ColorBelowWater(float4 screenPos, float3 tangentSpaceNormal) {
-	//---------------------REFRACTION----------------------------
-	//To make the offset wiggle, we'll use the XY coordinates of the tangent-space normal vector as the offset
+	// To make the offset wiggle, we'll use the XY coordinates of the tangent-space normal vector as the offset
+	// It will be synced with the apparent motion of surface
 	float2 uvOffset = tangentSpaceNormal.xy * _RefractionStrength;
+	// If water is still, we need to move background a bit to simulate refraction
 	if (uvOffset.x == 0 && uvOffset.y == 0) {
 		uvOffset = _RefractionStrength2;
 	}
-	// not symmetrical. The vertical offset is less than the horizontal.
-	// to equalize the offsets, we have to multiply the V offset by the image width divided by its height
+	// Diagonal offset is not symmetrical. The vertical offset is less than the horizontal.
+	// To equalize the offsets, we have to multiply the V offset by the image width divided by its height
+	// Z & W component of _CameraDepthTexture_TexelSize contain width & height in pixels
+	// Y is reciprocal of the height so we can multiply with Y instead of dividing with W (Y can be negative hence abs)
 	uvOffset.y *= _CameraDepthTexture_TexelSize.z * abs(_CameraDepthTexture_TexelSize.y);
+	float2 uv;
+	// We have to convert to screen-space coordinates, by dividing X and Y by W.
+	if(screenPos.w != 0)
+		uv = AlignWithGrabTexel((screenPos.xy + uvOffset) / screenPos.w);
 
-	float2 uv = AlignWithGrabTexel((screenPos.xy + uvOffset) / screenPos.w);
-
-
-
-	// depth relative to the screen
+	// Sample the background depth (behind water relative to the screen) via the SAMPLE_DEPTH_TEXTURE macro,
+	// and then convert the raw value to the linear depth via the LinearEyeDepth function.
 	float backgroundDepth = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, uv));
-	// surface depth
+	// We need to know the distance between the water and the screen
+	// Solution is to take screenPos.z, which is interpolated clip space depth and converting it to linear depth
 	float surfaceDepth = UNITY_Z_0_FAR_FROM_CLIPSPACE(screenPos.z);
-	// depth - water surface = depth from surface to object
+	// The underwater depth is found by subtracting the surface depth from the background depth.
 	float depthDifference = backgroundDepth - surfaceDepth;
 
-	// Calculate new offset scaled by depth difference
+	// Scale offset with depth difference. Depth is saturated (<0 = 0, >1 = 1) to range between 0 and 1.
+	// We do this to eliminate possible incorrect refractions near surface. With saturation and scaling,
+	// we eliminate near surface refractionsa
 	uvOffset *= saturate(depthDifference);
-	// recalculate UV
-	uv = AlignWithGrabTexel((screenPos.xy + uvOffset) / screenPos.w);
-	// again sample depth difference with correct UV
+	// Recalculate UV with new offset
+	if (screenPos.w != 0)
+		uv = AlignWithGrabTexel((screenPos.xy + uvOffset) / screenPos.w);
+	// Recalculate depth difference with correct UV
 	backgroundDepth = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, uv));
 	depthDifference = backgroundDepth - surfaceDepth;	
 
-	// Get color from behind color
+	// Sample color from _WaterBackground which represents color of fragment behind water
 	float3 backgroundColor = tex2D(_WaterBackground, uv).rgb;
-	// Calculate how much we want to apply fog
+	// Calculate how much we want to apply fog based on _WaterFogDensity and how much away is the fragment from water
 	float fogFactor = exp2(-_WaterFogDensity/10 * depthDifference);
+	// Linear interpolation of fog color and background color based on fogFactor as weight
 	return lerp(_WaterFogColor, backgroundColor, fogFactor);
 }
 

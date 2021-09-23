@@ -28,10 +28,14 @@
 
         // Use shader model 3.0 target, to get nicer looking lighting
         #pragma target 3.0
-
+        //_MainTex is for object texture, _CausticsTex is for caustics texture 
         sampler2D _MainTex, _CausticsTex;
+        // We will sample twice same texture for more realistic caustics movement
         float4 _Caustics_ST1, _Caustics_ST2;
         float2 _Speed1, _Speed2;
+        // Different wavelengths of light diffract differently when passing through a medium. 
+        // We will split RGB components to get that effect.
+        // _MaxHeight is there to limit caustics not to go above water and _Intensity provides strength of the output color
         float _SplitRGB, _MaxHeight, _Intensity;
 
         struct Input
@@ -45,44 +49,41 @@
         half _Metallic;
         fixed4 _Color;
 
-        // Add instancing support for this shader. You need to check 'Enable Instancing' on materials that use the shader.
-        // See https://docs.unity3d.com/Manual/GPUInstancing.html for more information about instancing.
-        // #pragma instancing_options assumeuniformscaling
-        UNITY_INSTANCING_BUFFER_START(Props)
-            // put more per-instance properties here
-        UNITY_INSTANCING_BUFFER_END(Props)
-
         float3 caustics(float2 uvTex) {
-            // Caustics sampling
+            // ------------ First caustics sampling ----------------
             fixed2 uv = uvTex * _Caustics_ST1.xy + _Caustics_ST1.zw;
+            // To animate caustics we need to apply _Time for it to increase UV each time
             uv += _Speed1 * _Time.y;
-            // RGB split
+            // RGB split of resampled pixel (we need to move UV with s offset and resample)
             fixed s = _SplitRGB / 10;
             fixed r = tex2D(_CausticsTex, uv + fixed2(+s, +s)).r;
             fixed g = tex2D(_CausticsTex, uv + fixed2(+s, -s)).g;
             fixed b = tex2D(_CausticsTex, uv + fixed2(-s, -s)).b;
             fixed3 caustics1 = fixed3(r, g, b);
-            //2
+            // ------------ Second caustics sampling ----------------
             uv = uvTex * _Caustics_ST2.xy + _Caustics_ST2.zw;
             uv += _Speed2 * _Time.y;
+            // RGB split of resampled pixel
             r = tex2D(_CausticsTex, uv + fixed2(+s, +s)).r;
             g = tex2D(_CausticsTex, uv + fixed2(+s, -s)).g;
             b = tex2D(_CausticsTex, uv + fixed2(-s, -s)).b;
             fixed3 caustics2 = fixed3(r, g, b);
-            // Blend
+            // Blending the two patterns using the min operator
             return min(caustics1, caustics2) * _Intensity;
         }
 
         void surf (Input IN, inout SurfaceOutputStandard o)
         {
-            // Albedo comes from a texture tinted by color
             float2 uv = float2(IN.uv_MainTex.x, IN.uv_MainTex.y/1.5);
+            // Sample Main texture and multiply it with Color
             fixed4 c = tex2D (_MainTex, uv) * _Color;
             o.Albedo = c.rgb;
+            // If fragment Y position is not above _MaxHeight (water) apply caustics
             if (IN.worldPos.y < _MaxHeight)
+                // Caustics will end on clear line at _MaxHeight which we dont want
+                // So we add second multiplicator to fade caustics as it is closer to _MaxHeight
                 o.Albedo.rgb += caustics(IN.uv_MainTex) * abs(min(1, ((_MaxHeight - IN.worldPos.y) / _MaxHeight))) * 2;
 
-            // Metallic and smoothness come from slider variables
             o.Metallic = _Metallic;
             o.Smoothness = _Glossiness;
             o.Alpha = c.a;
