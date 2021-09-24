@@ -25,14 +25,14 @@
         _RefractionStrength("Refraction Strength", Range(0, 1)) = 0.25
 
         [Header(Direction)]
-        [NoScaleOffset] _MainTex("Deriv (AG) Height (B)", 2D) = "black" {}
-        [NoScaleOffset] _FlowMap("Flow (RG)", 2D) = "black" {}
+        [NoScaleOffset] _MainTex("AG Derivatives, B Height", 2D) = "black" {}
+        [NoScaleOffset] _FlowMap("RG Flow, B speed, A noise", 2D) = "black" {}
         _Tiling("Tiling", Float) = 1
         _TilingModulated("Tiling, Modulated", Float) = 1
         _Speed("Speed", Float) = 1
         _FlowStrength("Flow Strength", Float) = 1
-        _HeightScale("Height Scale, Constant", Float) = 0.25
-        _HeightScaleModulated("Height Scale, Modulated", Float) = 0.75
+        _HeightScale("Constant Height Scale", Float) = 0.25
+        _HeightScaleModulated("Modulated Height Scale", Float) = 0.75
         _GridResolution("Grid Resolution", Float) = 10
 
     }
@@ -47,7 +47,7 @@
             GrabPass{"_WaterBackground"}
             CGPROGRAM
             // Physically based Standard lighting model, and enable shadows on all light types
-            #pragma surface surf Standard  alpha finalcolor:ResetAlpha vertex:vert addshadow
+            #pragma surface surf Standard  alpha finalcolor:ResetAlphaAtEnd vertex:vert addshadow
 
             // Use shader model 3.0 target, to get nicer looking lighting
             #pragma target 3.0
@@ -87,48 +87,46 @@
             fixed4 _Color;
 
             float3 GerstnerWave(float4 wave, float3 p, inout float3 tangent, inout float3 binormal) {
-                float2 dir = wave.xy;
-                float steepness = wave.z;
                 float wavelength = wave.w;
                 // Create the wave number (k) for easier calculations (2*PI/lambda)
                 float k = 2 * UNITY_PI / wavelength;
                 // Amplitude is equal to steepness (from 0 to 1) divided by the wave number (k)
+                float steepness = wave.z;
                 float amplitude = steepness / k;
                 // In real life, speed of waves is determined by gravity and the wave number. This is case for deep water
-                // while speed of shallow water is also affected by depth 
+                // while speed of shallow water is also affected by depth
                 float c = sqrt(9.8 / k);
 
                 // We need wave direction to be purely an indication of direction (unit lenght) so we need to normalize it
-                float2 d = normalize(dir);
+                float2 dir = normalize(wave.xy);
                 // Wave function. We will take sin and cos as well as derivative of this function to 
                 // calculate tangent, binormal and vertex position 
-                // Since wave will move in X and Z direction, vertex position is modulated by variable D (direction)
-                // D.xy represents direction of vertex X & Z components
-                float f = k * (dot(d, p.xz) - c * _Time.y);
+                // Since wave will move in X and Z direction, vertex position is modulated by variable dir (direction)
+                // dir.xy represents direction of vertex X & Z components
+                float function = k * (dot(dir, p.xz) - c * _Time.y);
 
-                // Final vertex position calculation P = [p.x + D.x * amp * cos(f), amp * sin(f), p.z + D.z * amp * cos(f)]
+                // Final vertex position calculation P = [p.x + dir.x * amp * cos(function), amp * sin(function), p.z + dir.z * amp * cos(function)]
 
-                // We calculate partial derivative of f for x and z component for tangent and binormal, respectively
-                // f'x = k * D.x, f'z = k * D.z
+                // We calculate partial derivative of function for x and z component for tangent and binormal, respectively
+                // f'x = k * dir.x, f'z = k * dir.z
                 // Then we do partial derivative of P (of X component for tangent and Z component for binormal)
                 tangent += float3(
-                    -d.x * d.x * (steepness * sin(f)),
-                    d.x * (steepness * cos(f)),
-                    -d.x * d.y * (steepness * sin(f)));
+                    -dir.x * dir.x * (steepness * sin(function)),
+                    dir.x * (steepness * cos(function)),
+                    -dir.x * dir.y * (steepness * sin(function)));
                 binormal += float3(
-                    -d.x * d.y * (steepness * sin(f)),
-                    d.y * (steepness * cos(f)),
-                    -d.y * d.y * (steepness * sin(f)));
-
-                // Vertex position which we will add to initial vertex position (d.y = D.z from previous calculations)
+                    -dir.x * dir.y * (steepness * sin(function)),
+                    dir.y * (steepness * cos(function)),
+                    -dir.y * dir.y * (steepness * sin(function)));
+                // Vertex position which we will add to initial vertex position (dir.y = dir.z from previous calculations)
                 // Since we want multiple waves, it is simply a matter of adding all their offsets (we dont need x + and z + for X and Z component)
                 return float3(
-                    d.x * (amplitude * cos(f)),
-                    amplitude * sin(f),
-                    d.y * (amplitude * cos(f)));
+                    dir.x * (amplitude * cos(function)),
+                    amplitude * sin(function),
+                    dir.y * (amplitude * cos(function)));
             }
 
-            float3 UnpackDerivativeHeight(float4 textureData) {
+            float3 ScaleAndUnpackDerivative(float4 textureData) {
                 // Unpack derivatives from channels A & G, and height from channel B
                 float3 dh = textureData.agb;
                 // Scale derivatives from 0 to 1 -> -1 to 1. Height isnt scaled because it does not have direction 
@@ -138,12 +136,10 @@
 
             float3 FlowCell(float2 uv, float2 offset, float time, bool gridB) {
                 // Instead of sampling at the bottom left corner of each tile, we want to sample from center of each tile.
-                // To do that we need to take 1 minus the unscaled offset
-                float2 shift = 1 - offset;
-                // And half that 
-                shift *= 0.5;
+                // To do that we need to take 1 minus the unscaled offset and divide by 2
+                float2 shift = (1 - offset) * 0.5;
                 // Offset needs to be halved because we used whole numbers as offset arguments
-                offset *= 0.5;
+                offset /= 2;
                 // In case of second grid we need to move shift and offset a little bit
                 if (gridB) {
                     shift -= 0.25;
@@ -152,10 +148,10 @@
                 // We want to find compromise between the perfect result of a uniform flow and the desired result of using a different flow direction per fragment.
                 // Solution is to split surface into tiles and then blend them between each other.
                 // floor(uv * _GridResolution)/_GridResolution creates Staircase pattern with _GridResolution stairs.
-                float2 uvTiled = (floor(uv * _GridResolution + offset) + shift) / _GridResolution;
+                float2 uv_t = (floor(uv * _GridResolution + offset) + shift) / _GridResolution;
 
                 // Sample flow vector (RG) and speed (B) from Flow texture 
-                float3 flow = tex2D(_FlowMap, uvTiled).rgb;
+                float3 flow = tex2D(_FlowMap, uv_t).rgb;
                 // Scale flow vector (from 0 to 1) to -1 to 1.
                 flow.xy = flow.xy * 2 - 1;
                 // Speed doesnt have direction so it does not need scale but we multiply it with _FlowStrength multiplier to control speed.
@@ -167,10 +163,10 @@
                 // Lighting is affected by changes in position, but not rotation, which causes normals to be wrong when we rotate pattern.
                 // Solution is to rotate derivates (its same as rotating normal vector) and rotation will be stored in derivRotation by DirectionalFlowUV.
                 float2x2 derivRotation;
-                float2 uvFlow = DirectionalFlowUV(uv + offset, flow, tiling, time, derivRotation);
+                float2 uv_f = DirectionalFlowUV(uv + offset, flow, tiling, time, derivRotation);
 
                 // From RGBA color from texture MainTex to scaled derivatives (RG) and heigth of waves (B)
-                float3 dh = UnpackDerivativeHeight(tex2D(_MainTex, uvFlow));
+                float3 dh = ScaleAndUnpackDerivative(tex2D(_MainTex, uv_f));
                 // Rotate the derivatives with rotation matrix we created in DirectionalFlowUV so we get correct normal vector
                 dh.xy = mul(derivRotation, dh.xy);
                 // Scale the strength of the derivative and height data, both using a constant factor and modulated by the flow strength.
@@ -186,24 +182,24 @@
                 float3 dhC = FlowCell(uv, float2(0, 1), time, gridB);
                 float3 dhD = FlowCell(uv, float2(1, 1), time, gridB);
 
-                // After sampling nearby cells, we need to average them out. This is done by linear interpolation of weights by t.
-                float2 t = uv * _GridResolution;
+                // After sampling nearby cells, we need to average them out. This is done by linear interpolation of weights by coef.
+                float2 coef = uv * _GridResolution;
                 // If its second grid, add offset to t
                 if (gridB) {
-                    t += 0.25;
+                    coef += 0.25;
                 }
                 // frac(t) will be in range(0,1), t will be in range(-1,1)
-                t = abs(2 * frac(t) - 1);
+                coef = abs(2 * frac(coef) - 1);
                 // Calculating weights for each cell
-                float wA = (1 - t.x) * (1 - t.y);
-                float wB = t.x * (1 - t.y);
-                float wC = (1 - t.x) * t.y;
-                float wD = t.x * t.y;
+                float wA = (1 - coef.x) * (1 - coef.y);
+                float wB = coef.x * (1 - coef.y);
+                float wC = (1 - coef.x) * coef.y;
+                float wD = coef.x * coef.y;
                 // Applying weights to each cell derivative
                 return dhA * wA + dhB * wB + dhC * wC + dhD * wD;
             }
 
-            void ResetAlpha(Input IN, SurfaceOutputStandard o, inout fixed4 color) {
+            void ResetAlphaAtEnd(Input IN, SurfaceOutputStandard o, inout fixed4 color) {
                 // Since we already calculated how much is the background visible, we dont need to do it twice
                 // Only thing we need to do is to reset alpha to 1
                 color.a = 1;
@@ -248,17 +244,21 @@
                 o.Normal = normalize(float3(-dh.xy, 1));
 
                 // Output color is height of waves multiplied by Color from inspector
-                fixed4 c = dh.z * 1.5 *_Color;
-                c.a = _Color.a;
-                o.Albedo = c.rgb;
+                fixed4 color = dh.z * 1.5 *_Color;
+                color.a = _Color.a;
+                o.Albedo = color.rgb;
 
                 o.Metallic = _Metallic;
                 o.Smoothness = _Glossiness;
-                o.Alpha = c.a;
+                o.Alpha = color.a;
 
                 // Since the albedo is affected by lighting, we must add the underwater color and reflection to the surface lighting, 
                 // which we can do by using it as the emissive color. We must modulate underwater fog by the water's alpha.
-                o.Emission = ColorBelowWater(IN.screenPos, o.Normal * 20) * (1 - c.a)
+                o.Emission = ColorBelowWater(IN.screenPos, o.Normal * 20) * (1 - color.a)
+                    // We cant use worldRefl declared in Input because it uses per vertex normal calculations and surf function uses per pixel calculations
+                    // We need to use WorldReflectionVector function which returns reflection vector based on per-pixel normal map
+                    // Then we sample CubeMap with that vector and get color which will fade as angle between IN.viewDir and o.Normal becomes smaller (camera above surface -> reflection = 0).
+                    // _ReflectionStrength is used to control reflection strength
                     + texCUBE(_CubeMap, WorldReflectionVector(IN, o.Normal)).rgb * (1 - dot(IN.viewDir, o.Normal)) * (1 - _ReflectionStrength);
             }
             ENDCG
