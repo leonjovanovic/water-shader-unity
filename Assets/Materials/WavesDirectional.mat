@@ -23,6 +23,10 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _CubeMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -68,13 +72,14 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.9
     - _GlossyReflections: 1
-    - _GridResolution: -0.1
+    - _GridResolution: 1.83
     - _HeightScale: -0.48
     - _HeightScaleModulated: 6.19
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
+    - _ReflectionStrength: 1
     - _RefractionStrength: 0.12
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1

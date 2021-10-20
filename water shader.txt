@@ -38,3 +38,4 @@ https://www.reddit.com/r/Unity3D/comments/pbwvc0/are_water_shaders_still_popular
 https://www.youtube.com/watch?v=vVuTEXWTO9M&ab_channel=hodilton
 
 https://hydrogen2014imac.files.wordpress.com/2013/02/realisticwater.pdf
+https://developer.nvidia.com/sites/all/modules/custom/gpugems/books/GPUGems/gpugems_ch02.html
