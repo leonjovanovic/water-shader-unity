@@ -64,6 +64,37 @@
 
 ## Flow
 
+&nbsp;&nbsp;&nbsp;&nbsp;Unlike waves where we changed the position of mesh vertices, the flow is implemented as an illusion of water movement because only the texture coordinates move while the vertices don't. Result of the algorithm are the texture coordinates with which we can sample the texture of the water, as well as the normals so that the surface is correctly lit. 
+
+### Distortional flow
+
+&nbsp;&nbsp;&nbsp;&nbsp;The algorithm begins by sampling the flow texture with the original UV coordinates. The sample is a displacement that we multiply with time and add to the UV coordinates to get a distortion animation. If we never reset the shift, the texture will move in different directions until the texture becomes too distorted.
+
+&nbsp;&nbsp;&nbsp;&nbsp;Resetting the function can be done by multiplying the shift with frac(Time) function, where frac returns the decimal part of the number. Thus, we achieve that after a certain time, the shift is reset to zero, and thus the UV will return to its original value. If we make a distortion over only one UV coordinates, there will be a sudden interruption at the moment of resetting the shift, which destroys the realism. Weight function will act as texture transparency. Weight is calculated as 1−|1−2 * frac(Time)|. Weight increases to half-period, after which it decreases to 0 at the end of the period. If texture is multiplied with the weight, texture will be invisible at the end of the loop.
+In order to fill in the gaps when the texture is invisible, we introduce different distortion. The second distortion will be half a period faster than the first distortion. It is necessary that when one distortion disappears, other appears. Since both distortions will sample the same texture, this means that we will have a continuous distortion without excessive distortion.
+ 
+&nbsp;&nbsp;&nbsp;&nbsp;When we move the original UV coordinates with two different shifts, we get a pair of new UV coordinates and a pair of weights. Pair of UV coordinates will be used to sample water texture twice multiplied by weights. When we add two products we calculated, we get the value that we need to multiply with the color of the water to get the final color.
+
+&nbsp;&nbsp;&nbsp;&nbsp;The normal derivatives are obtained by using the UV coordinates to sample the texture containing the derivatives in the AG channels. After scaling two different derivatives to a scale of -1 to 1, we need to add them up and store as XY components the required normals. The Z component of the normal is 1. 
+
+![Distortional flow](images/flow2.png)
+
+*Distortional flow*
+
+### Directional flow
+
+&nbsp;&nbsp;&nbsp;&nbsp;In order for the flow to be aligned with the flow texture, it is necessary to rotate the original UV coordinates with a rotation matrix made from the XY components of the flow texture sample (sinA = sample.x, cosA = sample.y). After rotating we have to add a shift to the UV coordinates. In this case, since it is a directional flow, the time will be added only to the Y component of the UV coordinate.
+
+&nbsp;&nbsp;&nbsp;&nbsp;Rotating and adding shift will result in a texture that is too distorted, but unlike the previous example where the problem was time, this is a spatial problem. The problem arises when each fragment rotates in different directions because we want to align it with the texture of the flow. In order to find a compromise between uniform flow and full alignment with a flow map, it is necessary to divide the surface into regions (tiles). It is also important that each region has only one flow. We will achieve this by calculating the UV coordinates of each region with ⌊10x⌋ / 10, where x is the number of regions and 10 is the total number of regions in the row / column. We now have a different direction flow in each region, but there is a clear division into regions (similar to a chessboard).
+
+&nbsp;&nbsp;&nbsp;&nbsp;In order for the borders to disappear, we need to blend them. We will do this by first blending the borders horizontally. For each fragment, we sample twice, once with the coordinates already obtained, and the second time with an additional shift of 0.5 (⌊10x * 0.5⌋ / 10). Also, similar to the previous solution, we introduce a weight function, where in this case we will take half of the first sample and half of the second. We need to repeat the same procedure to blend the vertical regions.
+
+&nbsp;&nbsp;&nbsp;&nbsp;Finally, with the obtained UV coordinates, we sample the derivatives texture. The XY components of the sample are normal derivatives , while the Z component is the wave height. After four different samples, we add up all the samples previously multiplied by their weights. The XY components of the results represent the fragment normal, while the Z component multiplied by the color gives the final fragment color. 
+
+![Directional flow](images/flow1.png)
+
+*Directional flow*
+
 ## Underwater Fog
 
 ## Video
