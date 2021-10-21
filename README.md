@@ -26,7 +26,9 @@
 ## Refraction
 
 &nbsp;&nbsp;&nbsp;&nbsp;Effect of refraction was achieved with the use of the so-called DuDv maps (false refraction). It is a texture that contains already calculated derivatives of the water normals. In order to simulate the false refraction, it is necessary to move the initial UV (texture) coordinates so that when we sample the objects using slightly shifted UV coordinates, the objects themselves look shifted.
+
 &nbsp;&nbsp;&nbsp;&nbsp;Refraction also depends on the water turbulence. If the water is calm, the refraction results in a slightly shifted underwater image, but if the water has waves and a surface flow, the refraction is much stronger.
+
 &nbsp;&nbsp;&nbsp;&nbsp;The simplicity of this solution is reflected in the fact that we can use the XY component of the water normals for the displacement that will be added to the original UV coordinates. Such solution gives us efficiency due to fast calculation of normals (via sampled derivatives) and accuracy, because if the water is turbulent, the water normals will also change and thus the refraction. 
 
 ![refr1](images/refraction1.png)
@@ -36,10 +38,12 @@
 ## Caustics
 
 &nbsp;&nbsp;&nbsp;&nbsp;The algorithm consists of sampling the caustics texture twice with UV coordinates that have different displacements. The RGB components from the two samples needs to be separated to create an effect where different wavelengths of light are refracted differently when passing through water. Finally, it is necessary to mix the two obtained textures.
-&nbsp;&nbsp;&nbsp;&nbsp;The UV shift must be different for the two samples to achieve distortion effect. Also the shift in both cases must be a function of time in order to move constantly. An additional parameter s is introduced, which will specify an additional shift to separate the colors. The separation of the RBG component is calculated by moving the UV coordinate by (s, s), (s, -s), (-s, -s) in the case of the R, G, B components, respectively. After that we have the final UV coordinates that we need to sample from the caustic texture. We sample three times for each component and take the R component from the first, G from the second, and B from the third color. Combine all three components into one color and repeat the whole separation process for the UV coordinates of the second sample.
-In the end, we combine the two colors and get the final color of the caustic, which we add to the color of the object and get the final color of the object. 
 
-![refr1](images/caustics1.png)
+&nbsp;&nbsp;&nbsp;&nbsp;The UV shift must be different for the two samples to achieve distortion effect. Also the shift in both cases must be a function of time in order to move constantly. An additional parameter s is introduced, which will specify an additional shift to separate the colors. The separation of the RBG component is calculated by moving the UV coordinate by (s, s), (s, -s), (-s, -s) in the case of the R, G, B components, respectively. After that we have the final UV coordinates that we need to sample from the caustic texture. We sample three times for each component and take the R component from the first, G from the second, and B from the third color. Combine all three components into one color and repeat the whole separation process for the UV coordinates of the second sample.
+
+&nbsp;&nbsp;&nbsp;&nbsp;In the end, we combine the two colors and get the final color of the caustic, which we add to the color of the object and get the final color of the object. 
+
+![Caustics](images/caustics.png)
 
 *Water caustics*
 
