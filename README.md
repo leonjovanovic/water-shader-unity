@@ -77,7 +77,7 @@ In order to fill in the gaps when the texture is invisible, we introduce differe
 
 &nbsp;&nbsp;&nbsp;&nbsp;The normal derivatives are obtained by using the UV coordinates to sample the texture containing the derivatives in the AG channels. After scaling two different derivatives to a scale of -1 to 1, we need to add them up and store as XY components the required normals. The Z component of the normal is 1. 
 
-![Distortional flow](images/flow2.png)
+![Distortional flow](images/flow3.png)
 
 *Distortional flow*
 
@@ -91,16 +91,26 @@ In order to fill in the gaps when the texture is invisible, we introduce differe
 
 &nbsp;&nbsp;&nbsp;&nbsp;Finally, with the obtained UV coordinates, we sample the derivatives texture. The XY components of the sample are normal derivatives , while the Z component is the wave height. After four different samples, we add up all the samples previously multiplied by their weights. The XY components of the results represent the fragment normal, while the Z component multiplied by the color gives the final fragment color. 
 
-![Directional flow](images/flow1.png)
+![Directional flow](images/flow12.png)
 
 *Directional flow*
 
 ## Underwater Fog
+
+&nbsp;&nbsp;&nbsp;&nbsp;To achieve effect of underwater fog we will calculate distance of fragment below water surface from water. Based on distance, output fragment color will be affected by color of fog. First we need to sample the background depth (behind water relative to the screen) with the SAMPLE_DEPTH_TEXTURE macro, and then convert the raw value to the linear depth via the LinearEyeDepth function. To find the distance between the water and the screen we take interpolated clip space depth and converting it to linear depth. The underwater depth is found by subtracting the surface depth from the background depth.
+
+&nbsp;&nbsp;&nbsp;&nbsp; Then we need to sample color from WaterBackground which represents color of fragment behind water. Then we calculate how much we want to apply fog based on WaterFogDensity and how much away is the fragment from water. To obtain final output color we calculate linear interpolation of fog color and background color based on weight.
+
+![Underwater fog](images/fog.png)
+
+*Underwater fog*
 
 ## Video
 
 [![Water Youtube](images/water_youtube.png)](https://youtu.be/tFkYjNdJcms)
 
 ## Future improvements
-
-
+* Dependence of previously implemented effects on water depth
+* Interaction of objects with water
+* Water foam when a wave hits a building or shore
+* The shore and objects that have come out of the water should be wet 
